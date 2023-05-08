@@ -46,8 +46,7 @@ DataFlow Graph 是一个有向无环图，由以下两个部分组成：
 ### 3.2 Data Exchange through Intermediate Data Streams
 Flink 的中间数据流是算子之间进行数据交换核心抽象。中间数据流表示的是由一个算子生成的可以被其他算子消费的中间数据的逻辑表示——他们是逻辑上的一种表示，可能不会被持久化到磁盘上。
 
-*Pipelined and Blocking Data Exchange*
-
+**Pipelined and Blocking Data Exchange**
 Pipelined stream 在同时运行的生产者和消费者之间交换数据，这就导致了数据流会从消费者向生产者传递 back pressure，通过中间缓冲池做一些调整来补偿短期的吞吐量波动。Flink 将 pipelined stream 用于连续流程序和批处理流的部分环节。
 back pressure 是流处理系统中关于处理能力的动态反馈机制。当 DAG 中的某些算子无法按照接收数据记录的速度处理记录时就发发生 back pressure，多余的输入数据会先填充此慢算子的输入缓冲区。一旦输入缓冲区被填满，back pressure 就会传递到上游子任务的输出缓冲区。一旦上游任务的输出缓冲区被填满，上游也被迫减慢其处理的处理速度，依次类推直到源算子。
 Flink 1.13 及以后，能够直接从Web UI中的作业图观察到 back pressure。
@@ -55,8 +54,7 @@ Flink 1.13 及以后，能够直接从Web UI中的作业图观察到 back pressu
 
 Blocking stream 适用于有界数据流，它在被消费之前会将生产者的所有数据进行缓冲，从而将生产和消费算子分离到不同的阶段。blocking stream 自然需要更多的内存，经常需要溢出到二级存储，并且不传递 back pressure。它们可以用来隔离连续的算子。
 
-*Balancing Latency and Throughput*
-
+**Balancing Latency and Throughput**
 Flink 的数据交换机制是建立在交换 buffer records 的基础上。当数据记录在生产者一侧准备就绪时，会被序列化并分成一个或者多个buffer records，然后转发给下游的消费者。这样的设计使得 Flink 能够通过调整 buffer 的大小来调节吞吐量和延迟——将 buffer 设置为高值来实现高吞吐量，通过将 buffer 设置为低值来实现低延迟。
 实际上 Flink 的算子在满足以下两个条件之一时就会向下游发送数据。
 - 当输出 buffer 的空间占满时，将数据 flush 到下游
@@ -64,8 +62,7 @@ Flink 的数据交换机制是建立在交换 buffer records 的基础上。当�
 Figure 4 展示了buffer timeout 对30台机器上简单的流式处理作业中交付记录的吞吐量和延迟的影响。可以观察到当99分位延迟为20ms 的情况下，集群能够保证150万/秒个事件的吞吐量；当99分位延迟为50ms时，集群能够保证800多万/秒个事件的吞吐量。
 ![image](https://user-images.githubusercontent.com/54345716/236876003-1a4ce0a0-3dc4-4acc-871f-6a5e5b891634.png)
 
-* Control Events *
-
+**Control Events**
 Flink 中的流除了交换数据还可以传递不同类型的控制事件，这些控制事件是由算子在数据流中注入的特殊事件，它们会随着其他控制事件一起按顺序传递。Flink 使用很多特殊类型的控制事件，包括：
 - Checkpoint barriers 将流划分为 pre-checkpointing 和 post-checkpointing 阶段来协调检查点（第3.3节讨论）
 - Watermark 标志着流分区内事件的进展（第4.2节讨论）
@@ -75,12 +72,12 @@ Flink 中的流除了交换数据还可以传递不同类型的控制事件，�
 Flink 通过 checkpointing 和 steam replay 来处理故障，提供了可靠的执行环境和 exactly-once 的一致性保证。为了有效提供这些保证，需要数据源是持久的和可重放的（比如消息队列）。在实践中，非持久的数据源可以通过在数据源算子的状态中保持一个 write-ahead 日志来提供重放的能力。
 Flink 的检查点机制是建立在分布式一致性快照的概念上的。由于数据流可能是无界的，对于一个长期运行的作业来说完全重复计算需要重做所有的计算，显然这是不切实际的。Flink 会定期对算子的状态进行快照，包括每隔一段时间对输入流的当前位置进行检查。
 引入 checkpoints 以后，故障中恢复只需要将所有算子的状态恢复到最后一次成功的快照中的各自状态，从有快照的最新屏障开始重新启动输入流。这样故障恢复的最大重新计算量必定小于两个结果障碍之间的数据输入量。如下图所示，定期做 checkpoints 以后在故障恢复时 Flink 直接从 checkpoint n 开始重放，不再需要关注更老的数据记录。  
-[图片]
+![image](https://user-images.githubusercontent.com/54345716/236876603-f95decb0-a72c-4164-b42e-43549cd40b99.png)
 对所有并行运行的算子进行一致性快照的核心挑战在于不能停止程序的执行。从本质上来讲，所有算子的快照应该是指计算中的同一逻辑时间，Flink中使用的机制被称为异步障碍物快照（Asynchronous Barrier Snapshotting）。
-[图片]
+![image](https://user-images.githubusercontent.com/54345716/236876721-01d9358c-cf36-4d15-af49-8fb4d714870f.png)
 3.4 Iterative Dataflows 
 Flink 的 Dataflow Graph 模型同样能够支持迭代计算。在数据并行处理系统中对迭代的支持通常是通过为每个迭代提交一个新的作业或者向运行中的DAG添加额外的节点或者反馈边，重复地执行执行函数直到达到某个终止条件。Flink 中的迭代实现是 iteration steps——这些特殊的算子本身包含一个 DAG 执行图，如 Figure 6 所示。在第4.5节和第5.3节会分别介绍流处理系统和批处理系统分别是如何实现迭代计算的。
-[图片]
+![image](https://user-images.githubusercontent.com/54345716/236876603-f95decb0-a72c-4164-b42e-43549cd40b99.png)
 迭代计算中比较重要的概念包括：
 Iteration Head：获取数据源或者算子上一次迭代的输出结果
 Iteration Step：在每次迭代过程中执行，是包含了各种算子的数据流
