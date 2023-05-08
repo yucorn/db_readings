@@ -3,6 +3,7 @@
 ## 1. Introduction
 ## 2. Use Cases
 ## 3. Architecture Overview
+
 <img width="529" alt="image" src="https://user-images.githubusercontent.com/54345716/236815277-4982237f-3854-40e7-a601-f7e2f5360646.png">
 
 ## 4. System Design
