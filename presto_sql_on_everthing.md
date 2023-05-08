@@ -13,7 +13,7 @@ Presto 集群由一个 Coordinator 节点和多个 Work 节点两部分组成，
 * Coordinator 通过评估队列策略、解析和分析 SQL 语句，创建和优化分布式的执行计划，然后将查询计划分配给 Work 节点执行；
 * Work 开始执行任务，
 
-Presto 插件式的设计具有高度的可扩展性。插件可以自定义的数据类型、函数、访问控制实现、时间消费者、队列策略和配置属性。另外，通过实现插件定义的接口可以创建不同的 connector，使得 Presto 能够访问外部数据源存储。Connector API 由四个部分组成：Metadata API，Data Location API，Data Source API 和 Data Sink API。
+Presto 的插件式设计具有高度的可扩展性。插件可以自定义的数据类型、函数、访问控制实现、时间消费者、队列策略和配置属性。另外，通过实现插件定义的接口可以创建不同的 connector，使得 Presto 能够访问外部数据源存储。Connector API 由四个部分组成：Metadata API，Data Location API，Data Source API 和 Data Sink API。
 ## 4. System Design
 ## 5. Query Processing Optimization
 ## 6. Performance
