@@ -47,6 +47,7 @@ DataFlow Graph 是一个有向无环图，由以下两个部分组成：
 Flink 的中间数据流是算子之间进行数据交换核心抽象。中间数据流表示的是由一个算子生成的可以被其他算子消费的中间数据的逻辑表示——他们是逻辑上的一种表示，可能不会被持久化到磁盘上。
 
 *Pipelined and Blocking Data Exchange*
+
 Pipelined stream 在同时运行的生产者和消费者之间交换数据，这就导致了数据流会从消费者向生产者传递 back pressure，通过中间缓冲池做一些调整来补偿短期的吞吐量波动。Flink 将 pipelined stream 用于连续流程序和批处理流的部分环节。
 back pressure 是流处理系统中关于处理能力的动态反馈机制。当 DAG 中的某些算子无法按照接收数据记录的速度处理记录时就发发生 back pressure，多余的输入数据会先填充此慢算子的输入缓冲区。一旦输入缓冲区被填满，back pressure 就会传递到上游子任务的输出缓冲区。一旦上游任务的输出缓冲区被填满，上游也被迫减慢其处理的处理速度，依次类推直到源算子。
 Flink 1.13 及以后，能够直接从Web UI中的作业图观察到 back pressure。
@@ -55,6 +56,7 @@ Flink 1.13 及以后，能够直接从Web UI中的作业图观察到 back pressu
 Blocking stream 适用于有界数据流，它在被消费之前会将生产者的所有数据进行缓冲，从而将生产和消费算子分离到不同的阶段。blocking stream 自然需要更多的内存，经常需要溢出到二级存储，并且不传递 back pressure。它们可以用来隔离连续的算子。
 
 *Balancing Latency and Throughput*
+
 Flink 的数据交换机制是建立在交换 buffer records 的基础上。当数据记录在生产者一侧准备就绪时，会被序列化并分成一个或者多个buffer records，然后转发给下游的消费者。这样的设计使得 Flink 能够通过调整 buffer 的大小来调节吞吐量和延迟——将 buffer 设置为高值来实现高吞吐量，通过将 buffer 设置为低值来实现低延迟。
 实际上 Flink 的算子在满足以下两个条件之一时就会向下游发送数据。
 - 当输出 buffer 的空间占满时，将数据 flush 到下游
@@ -62,7 +64,8 @@ Flink 的数据交换机制是建立在交换 buffer records 的基础上。当�
 Figure 4 展示了buffer timeout 对30台机器上简单的流式处理作业中交付记录的吞吐量和延迟的影响。可以观察到当99分位延迟为20ms 的情况下，集群能够保证150万/秒个事件的吞吐量；当99分位延迟为50ms时，集群能够保证800多万/秒个事件的吞吐量。
 ![image](https://user-images.githubusercontent.com/54345716/236876003-1a4ce0a0-3dc4-4acc-871f-6a5e5b891634.png)
 
-*Control Events*
+* Control Events *
+
 Flink 中的流除了交换数据还可以传递不同类型的控制事件，这些控制事件是由算子在数据流中注入的特殊事件，它们会随着其他控制事件一起按顺序传递。Flink 使用很多特殊类型的控制事件，包括：
 - Checkpoint barriers 将流划分为 pre-checkpointing 和 post-checkpointing 阶段来协调检查点（第3.3节讨论）
 - Watermark 标志着流分区内事件的进展（第4.2节讨论）
