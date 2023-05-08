@@ -159,16 +159,17 @@ ListState
 类型为列表的状态
 Keyed State 在 KeyedStream 中使用，状态和特定的 Key 进行绑定，即 KeyedStream 流上的每一个 Key 对应一个 State 对象；Operator State 跟一个特定算子的一个实例绑定，整个算子只对应一个 State。
 
-Using State
+**Using State**
 在 Flink 中使用状态，有两种典型的场景：
 - 状态操作：使用状态对象本身存储、写入和更新数据
 - 状态访问：从状态存储中获取状态对象本身
 状态操作面向应用开发者只提供了对 State 的数据进行添加、更新和删除等基本的操作接口，面向 Flink 框架除了能够对 State 的数据进行操作，还提供了内部的运行时信息，比如 State 中数据的序列化器、命名空间合并等接口。
 状态访问面向应用开发者可以从自定义的 UDF 中访问到相关的状态信息，面向 Flink 框架能够读取对应的状态信息在故障恢复时发挥重要的作用。
 
-State Backends
+**State Backends**
 State 需要被持久化到可靠存储中，才能让服务具备应用级的容错能力，Flink 的状态都存储在 StateBackend 中。根据使用场景的不同，Flink 内置了以下三种 StateBackend。
-[图片]
+![image](https://user-images.githubusercontent.com/54345716/236877891-bfe387bc-9565-48d8-bb82-7d68fbb0fcf3.png)
+
 名称
 Working State
 状态备份
@@ -192,17 +193,15 @@ JobManager JVM Heap
 全量
 - 适用于小状态的（本地）测试和实验
 当使用基于 JVM Heap 的 StateBackend 访问和更新对象直接堆上进行，而对于文件型的 RocksDBStateBackend 访问和更新涉及到序列化和反序列化，所以会有更大的开销。但使用 RocksDBStateBackend 能够克服状态存储受TaskManager 堆内存大小限制的问题，同时又能够支持增量的持久化数据，比较适合再生产中使用。
+
 ### 4.4 Stream Windows
 Stream Windows 是 Flink 定义的一个有状态的算子。它是处理无界流数据的核心抽象，通过将无限的数据流分解成若干个窗口，然后在这些有界的窗口上进行计算。
 Windows 由以下三个核心功能组成：
-组件名称
-功能描述
-分配器（window assigner）
-决定将数据记录分配给哪个逻辑窗口，根据分配策略的不同将窗口分为CountWindow、TimeWindow、SessionWindow
-触发器（trigger）
-决定何时执行窗口上定义的关联操作，当有数据加入时调用触发器判断是否需要触发计算，触发的结果包括CONTINUE、FIRE、PUGE、FIRE_AND_PURGE
-驱逐器（evictor）
-负责决定每个窗口中保留哪些记录，包括 CountEvictor、DeltaEvictor、TimeEvictor
+| 组件名称 | 功能描述 | 
+| 分配器（window assigner）| 决定将数据记录分配给哪个逻辑窗口，根据分配策略的不同将窗口分为CountWindow、TimeWindow、SessionWindow |
+| 触发器（trigger） | 决定何时执行窗口上定义的关联操作，当有数据加入时调用触发器判断是否需要触发计算，触发的结果包括CONTINUE、FIRE、PUGE、FIRE_AND_PURGE
+| 驱逐器（evictor） | 负责决定每个窗口中保留哪些记录，包括 CountEvictor、DeltaEvictor、TimeEvictor |
+
 下面这个例子定义了范围为6秒的时间窗口，每隔2秒滑动一次（即分配器），一旦 watermark 通过窗口的末端（即触发器）就会触发窗口计算，执行窗口函数。
 ```SQL
 stream
@@ -216,9 +215,11 @@ stream
  .trigger(Count.of(1000)) .evict(Count.of(100)) 
 ```
 对窗口中的数据进行计算的函数称为 window 函数，窗口函数通常是聚合、累加等常规的计算函数。Flink 对一些聚合类（如 sum 和 min）的窗口计算做了优化，通过在内存中保存中间结果值，每次有新元素进入窗口时直接在中间结果值的基础上进行修改，但如果用户定义了驱逐器 Evictor，则不会启用对聚合窗口的优化。
+
 ### 4.5 Asynchronous Stream Iterations 
 数据流的循环对一些应用来说是必不可少的，如构建机器学习模型、强化学习等。在大部分这种情况下，反馈的循环不需要额外的协调，少部分情况需要异步迭代的机制来处理并行优化问题。      
 Flink 的执行模型目前已经支持了异步流迭代，DataStream API 允许明确地定义反馈流，并且能够定制化地对流的循环提供支持以及进度跟踪。
+
 ## 5. Batch Analytics on Top of Dataflows 
 Flink 支持批处理的方式是将批处理输入的有界数据集作为无界数据流的一个特例——将有界的数据集视为一个窗口内输入的所有数据流构建处理程序，批处理可以完全被上文介绍的功能所覆盖。Flink 进行了以下适配来执行批处理：
 - 提供 DataSet API 专门处理批处理，并且提供查询优化层将 DataSet 程序转化成高效的可执行程序
@@ -228,13 +229,14 @@ Flink 支持批处理的方式是将批处理输入的有界数据集作为无�
 ### 5.1 Query Optimization
 Flink 的批处理优化器建立在并行数据库系统的技术之上，比如 plan equivalence, cost modeling and interesting-property propagation。由于构建 Flink 数据流程序中包含用户定义的函数（UDF），导致算子的运算复杂度难以评估，因此 Flink 的查询优化无法直接应用传统的优化技术。
 目前，Flink 的运行时支持多种执行策略，包括重新分区和广播数据传输，以及基于排序的分组和哈希链接的实现。Flink 的优化器根据 interesting properties propagation 的概念枚举多个物理执行计划，基于 CBO 的方法在多个执行计划中进行选择。考量的执行成本包括网络、磁盘 I/O 和 CPU 的使用成本。为了克服 UDF 引起的基数耗时难以预估准确的问题，Flink 优化器还可以支持通过 hint 的方式执行程序员指定的执行方式。
+
 ### 5.2 Memory Management
 Flink 的内存管理构建在数据库技术的基础上，它通过将数据序列化为内存段，而不是在JVM堆上表示 buffer records。诸如 sort 或 join 算子可以直接在二进制数据上进行操作，从而降低序列化和反序列化的开销。
 为了处理任意类型的对象，Flink 引入了类型推断和自定义序列化的机制。通过使用二进制数据、堆外存储尝试减少GC带来的开销。
+
 ### 5.3 Batch Iterations
 迭代图分析、并行梯度下降和优化技术过去一直是在整体同步并行模型（Bulk Synchronous Parallel ）和同步并行模型（Stale Synchronous Parallel ）上实现的。Flink 通过实现 iteration-control events 能够在上边任意一种类型的结构上迭代逻辑，比如在 BSP 执行模型中 iteration-control events 标志着迭代计算的 Super Step 步骤开始和结束。另外，Flink 还引入了更多新的优化技术，比如可以利用稀疏的计算的delta iterations概念——目前已经被应用在了Flink’s Graph API上。
 整体同步并行模型：引入Super Step的概念，每一个Super Step均代表 BSP 模型中一次完整的并行计算过程，整个运算过程包含若干个串行超步，超步包含本地计算过程、运算节点间通讯过程和同步过程。超步中的三个阶段是严格串行的，即所有处理机本地计算结束后统一进行通讯过程，最后执行同步阶段。除此之外，每个运算单元在一个超步内只能传递或接收一次数据。
-[图片]
 
 ## Reference
 * https://nightlies.apache.org/flink/flink-docs-release-1.16/zh/docs/concepts/stateful-stream-processing/
