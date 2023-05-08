@@ -74,10 +74,12 @@ Flink 的检查点机制是建立在分布式一致性快照的概念上的。�
 引入 checkpoints 以后，故障中恢复只需要将所有算子的状态恢复到最后一次成功的快照中的各自状态，从有快照的最新屏障开始重新启动输入流。这样故障恢复的最大重新计算量必定小于两个结果障碍之间的数据输入量。如下图所示，定期做 checkpoints 以后在故障恢复时 Flink 直接从 checkpoint n 开始重放，不再需要关注更老的数据记录。  
 ![image](https://user-images.githubusercontent.com/54345716/236876603-f95decb0-a72c-4164-b42e-43549cd40b99.png)
 对所有并行运行的算子进行一致性快照的核心挑战在于不能停止程序的执行。从本质上来讲，所有算子的快照应该是指计算中的同一逻辑时间，Flink中使用的机制被称为异步障碍物快照（Asynchronous Barrier Snapshotting）。
-![image](https://user-images.githubusercontent.com/54345716/236876721-01d9358c-cf36-4d15-af49-8fb4d714870f.png)
+![image](https://user-images.githubusercontent.com/54345716/236876906-ecf4cbf5-f485-41fa-9a1d-62677cc7bb4a.png)
+
 3.4 Iterative Dataflows 
 Flink 的 Dataflow Graph 模型同样能够支持迭代计算。在数据并行处理系统中对迭代的支持通常是通过为每个迭代提交一个新的作业或者向运行中的DAG添加额外的节点或者反馈边，重复地执行执行函数直到达到某个终止条件。Flink 中的迭代实现是 iteration steps——这些特殊的算子本身包含一个 DAG 执行图，如 Figure 6 所示。在第4.5节和第5.3节会分别介绍流处理系统和批处理系统分别是如何实现迭代计算的。
-![image](https://user-images.githubusercontent.com/54345716/236876603-f95decb0-a72c-4164-b42e-43549cd40b99.png)
+![image](https://user-images.githubusercontent.com/54345716/236876934-369f3fac-cd28-492a-a681-7424317a20cd.png)
+
 迭代计算中比较重要的概念包括：
 Iteration Head：获取数据源或者算子上一次迭代的输出结果
 Iteration Step：在每次迭代过程中执行，是包含了各种算子的数据流
@@ -86,38 +88,32 @@ Iteration Tail：单次迭代的输出结果
 有多个条件可以指定迭代的终止条件：
 - 最大迭代次数：如果没有任何进一步的条件，迭代计算达到最大迭代次数后停止
 - 自定义聚合器收敛：允许自定义聚合器和收敛标准，如 sum 聚合器可以定义参与计算的记录数量或者累加等于0的时候退出终止迭代
+
 ## 4. Stream Analytics on Top of Dataflows 
 Flink 的 DataStream API 实现了完整的流处理分析框架，包括时间的定义、无序事件的处理、定义窗口、维护和更新用户定义的状态等特性。
 ### 4.1 The Notion of Time
 Flink 中定义了多种时间的类型，时间类型的定义和特点参见下表：
-时间类型
-具体描述
-特点
-Event Time
-指的是事件发生的时间，一旦确定以后再也不会改变。例如，事件被记录在日志文件中，日志中记录的时间戳就是时间事件
-- 不依赖操作系统的时钟，无论执行多少次可以保证计算结果相同
-- 计算逻辑稍微复杂，需要从数据记录中提取时间
-Processing Time
-指的是事件被计算流引擎处理的时间，以计算节点的本地时间为准。
-- 依赖操作系统的时钟，重复执行结果可能是不同的
-- 计算逻辑简单，只需要获取当前系统的时间
-Ingestion Time
-指的是事件进入流处理引擎的时间
-- 处理机制上类似于 Event Time
+| 时间类型 | 具体描述 | 特点 |
+| --- | --- | --- |
+| Event Time |指的是事件发生的时间，一旦确定以后再也不会改变。例如，事件被记录在日志文件中，日志中记录的时间戳就是时间事件| 不依赖操作系统的时钟，无论执行多少次可以保证计算结果相同 |
+| Processing Time | 指的是事件被计算流引擎处理的时间，以计算节点的本地时间为准 | 依赖操作系统的时钟，重复执行结果可能是不同的 |
+| Ingestion Time |指的是事件进入流处理引擎的时间 | 处理机制上类似于 Event Time |
+
 Flink 中实际使用的比较多的是 Event Time 和 Processing Time，Ingestion Time 一般使用的比较少，当数据记录中没有时间记录，又想使用 Event Time 的机制来处理数据，可以考虑选择使用 Ingestion Time 作为替代。
 从流处理的原始设备产生事件开始，到 Flink 读取到数据，再到 Flink 多个算子处理数据，这个过程会导致事件发生的时间 Event Time 到时间被流引擎处理的时间 Processing Time 之间存在一定程度的延迟。实际情况中流处理过程中还会受到网络延迟、数据乱序、反压、Failover等多种情况的影响，输入数据是乱序的。考虑此类异常情况，为了保证计算结果的正确性就需要等待数据，而这样势必会带来计算的延迟进一步增大。对于延迟太久的数据，我们又不能无限期的等下去，所以 Flink 引入了 watermark 的机制来保证特定时间后一定会触发窗口进行计算。
-4.2 Watermark
+
+### 4.2 Watermark
 Flink 作为流处理引擎并不感知数据的生产情况，通过 watermark 来断言所有的数据已经到达，不再等待更早的数据。以时间进度为例，具有时间属性 t 的 watermark，表示所有低于 t 的事件都已经进入了算子，生成 watermark 时引擎不再等待数据并触发一次计算。
 如果数据流都是有序的，watermark 就是一个简单的周期性标记，并不能发挥额外的作用。
-[图片]
+![image](https://user-images.githubusercontent.com/54345716/236877336-8caeee5f-c657-4114-a87d-cb4f4c35625b.png)
 如果数据流是无序的，watermark 告诉算子比 watermark 更早的事件都已经到达，算子可以将内部事件提前到watermark 的时间戳。比如下图的例子中数据 19 出现在 w(20) 后才出现，可以根据引擎的策略决定对数据的具体处理方式 。
-[图片]
+![image](https://user-images.githubusercontent.com/54345716/236877350-d6925590-b07d-4a47-aad4-7366ed74ed98.png)
 比 watermark 更晚的出现的数据一般有以下三种处理方式：
 - 直接将延迟的数据丢弃（Flink 的默认处理方式）
 - 通过 allowedLateness 指定允许数据的最大延迟时间，Fllink 会在窗口关闭后一直保存窗口的状态，期间迟到的事件不会被丢弃，而是默认会触发窗口的重新计算。
 - 通过 sideOutputLateData 收集延迟的数据，统一存储方便后期排查问题 
 
-When Generating Watermark ?
+**When Generating Watermark ?**
 DataStream 和 Flink Table & SQL 模块中，使用了各自的 watermark 生成体系。
 DataStream 中生成 watermark 相对更加灵活，通常在 Source Function 中生成 watermark，直接为数据元素分配时间戳，同时向下游发送 watermark。Flink 提供了额外的机制，允许用户调用 DataStream API 根据业务逻辑的需要，使用时间戳和 watermark 生成器修改数据记录的时间戳和 watermark。
 Flink Table & SQL 中的 watermark 的生成策略包括以下三类：
@@ -129,8 +125,8 @@ Flink Table & SQL 中的 watermark 的生成策略包括以下三类：
 为每一个递增的 EventTime 产生一个 watermark，使用这种方式会生成大量的 watermark，只有在实时性要求非常高的场景才会使用
 无为策略
 Flink SQL 中不设定 watermark 策略，使用底层的 DataStream 中的 watermark 策略
-4.3 Stateful Stream Processing
-What is State ?
+### 4.3 Stateful Stream Processing
+**What is State ?**
 对于流处理系统而言，事件持续不断地产生，如果每次计算都是相互独立的，不依赖于上下游的事件，则是无状态的计算。如果计算需要依赖之前或后续的事件，则是有状态的计算。Flink 的算子都提供了对状态 State 的支持。
 举几个例子方便理解 Flink 中状态的作用，比如涉及到求和的场景如果重复计算需要依赖所有的事件，如果记录当前所有值的总和，就只需要在中间结果的基础上直接求和即可。 比如在上游数据源是消息队列的场景中，通过记录队列的消费 offset 作为状态能够去掉数据流中的重复数据，避免重复处理。
 按照数据结构的不同，Flink中定义了多种类型的 State 用于不同的场景，具体如下：
@@ -208,13 +204,17 @@ Windows 由以下三个核心功能组成：
 驱逐器（evictor）
 负责决定每个窗口中保留哪些记录，包括 CountEvictor、DeltaEvictor、TimeEvictor
 下面这个例子定义了范围为6秒的时间窗口，每隔2秒滑动一次（即分配器），一旦 watermark 通过窗口的末端（即触发器）就会触发窗口计算，执行窗口函数。
+```SQL
 stream
  .window(SlidingTimeWindows.of(Time.of(6, SECONDS), Time.of(2, SECONDS))
  .trigger(EventTimeTrigger.create()) 
+```
 下面这个例子定义了一个全局窗口（即分配器），每次计数到1000个事件触发窗口计算（即触发器），计算时从窗口头部开始丢弃数据仅保留最后100个元素（即驱逐器）。
+```SQL
 stream 
  .window(GlobalWindow.create()) 
  .trigger(Count.of(1000)) .evict(Count.of(100)) 
+```
 对窗口中的数据进行计算的函数称为 window 函数，窗口函数通常是聚合、累加等常规的计算函数。Flink 对一些聚合类（如 sum 和 min）的窗口计算做了优化，通过在内存中保存中间结果值，每次有新元素进入窗口时直接在中间结果值的基础上进行修改，但如果用户定义了驱逐器 Evictor，则不会启用对聚合窗口的优化。
 ### 4.5 Asynchronous Stream Iterations 
 数据流的循环对一些应用来说是必不可少的，如构建机器学习模型、强化学习等。在大部分这种情况下，反馈的循环不需要额外的协调，少部分情况需要异步迭代的机制来处理并行优化问题。      
