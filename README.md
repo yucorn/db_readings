@@ -7,4 +7,4 @@
 * [A survey on advancing the DBMS query optimizer](a_survey_on_advancing_the_dbms_query_optimizer.md)
 
 ### Stream System
-* [Apache flink system and batch processing in single engine](apache_flink_stream_and_batch_processing_in_single_engine.md)
+* [Apache Flink: stream and batch processing in single engine](apache_flink_stream_and_batch_processing_in_single_engine.md)
