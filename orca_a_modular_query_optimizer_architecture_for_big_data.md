@@ -15,11 +15,28 @@
 * 可扩展性，将查询的所有元素和它的优化作为同等重要的一等公民，避免了多阶段优化的陷阱；
 * 多线程优化好，Orca 部署了多核感知调度器，能够将各个细粒度的优化子任务分布在多个核心上以加快优化的过程；
 * 可验证性，Orca 提供了专门的机制来验证查询优化的正确性和性能，改善了工程实践的体验，并且这些工具能够提高开发效率，缩短开发新功能和 bug 修复的时间；
-* 性能，Orca 比以前的系统在性能上提升很多，大部分情况下查询速度提高了10倍甚至能够达到1000倍
+* 性能，Orca 比以前的系统在性能上提升很多，大部分情况下查询速度提高了10倍甚至能够达到1000倍。
 
+我们将会描述 Orca 的架构和介绍它的设计带来的一些先进功能。
 
 <img width="455" alt="image" src="https://github.com/yucorn/db_readings/assets/54345716/3cb8f448-4b24-4d49-90ef-0cf51229f479">
 
 
-## 2. 
+## 2. Preliminaries
+### 2.1 Massively Parallel Processing
 
+### 2.2 SQL on Hadoop
+
+## 3. Orca Architecture
+
+## 4. Query Optimization
+
+## 5. Metadata Exchange
+
+## 6. Verify Ability
+
+## 7. Experiments
+
+## 8. Related Work
+
+## 9. Summary
