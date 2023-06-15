@@ -28,6 +28,12 @@
 ### 2.2 SQL on Hadoop
 
 ## 3. Orca Architecture
+Orca 是基于 Cascade 框架的自顶向下的查询优化器。虽然许多 Cascade 优化器和主机系统关联紧密，但 Orca 的独特功能使得它能够作为独立的查询优化器运行在数据库系统以外。这种能力对于使用优化器能力支持不同架构的产品至关重要。它还允许运行将优化器作为一个独立的产品来运行而不需要和主机系统绑定。
+
+<img width="527" alt="image" src="https://github.com/yucorn/db_readings/assets/54345716/f1bccbd4-fbd3-4cd3-b760-720d7c971919">
+<img width="529" alt="image" src="https://github.com/yucorn/db_readings/assets/54345716/33021064-8c9c-40fe-9b69-e36ccb3a9792">
+
+**DXL** 
 
 ## 4. Query Optimization
 
