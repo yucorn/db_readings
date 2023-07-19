@@ -38,7 +38,8 @@ Figure 2 展示了 Orca 依赖 XML 和外部数据库系统的交互方式。Orc
  数据库系统需要引入消费、输出 DXL 格式数据的翻译器。Query2DXL 翻译器将查询查询语法树解析成 DXL 查询，而 DXL2Plan 翻译器将 DXL 计划翻译成数据库可执行的查询计划。这些翻译器的实现是在 Orca 框架以外完成的，不同的数据库系统可以通过提供适当的翻译器来使用 Orca。
 Orca 的架构具有高度的可扩展性，所有组件都可以被个性化的配置或替代。Figure 3 展示了 Orca 的不同组件，下面我们简要介绍下这些组件。
 **Memo**  Orca 产生的备选执行计划被编码在紧凑的内存数据结构中，我们称之为 Memo。 Memo 结构由一组称为 groups 的容器组成，每个 group 上包含逻辑等价的表达式。Memo groups 又称为 group expressions 记录了查询的不同子目标（比如查询的条件过滤、两个表之间的连接）。Group member 以不同的逻辑方式实现组目标。每个 group expression 是一个包含其他 group 作为子节点的算子。这种递归的结构允许对巨大的可能计划空间进行紧凑的编码，我们在 4.1 节会继续讨论。 
-Search and Job Scheduler Orca 使用搜索的机制来浏览所有可能得查询计划，并确定评估出成本最低的执行计划。搜索机制是由专门的 Job Scheduler 负责的，它通过创建相互依赖或并行的工作单元在三个主要的步骤中进行查询优化：
+
+**Search and Job Scheduler** Orca 使用搜索的机制来浏览所有可能得查询计划，并确定评估出成本最低的执行计划。搜索机制是由专门的 Job Scheduler 负责的，它通过创建相互依赖或并行的工作单元在三个主要的步骤中进行查询优化：
 * exploration 生成等价的逻辑表达式
 * implementation 生成物理执行计划
 * optimization 强制执行所需要的物理属性，并计算计划的可替代方案的执行成本。
